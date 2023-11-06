@@ -1,7 +1,7 @@
 # MCU Motor Driver
 
 Listens for JSON messages on Serial, uses timer to bitbang signals for [Nema TB6600](https://www.dfrobot.com/product-1547.html). 
-## Message example
+## Motor position example
 ```json
 {
     "A":
@@ -14,5 +14,11 @@ Listens for JSON messages on Serial, uses timer to bitbang signals for [Nema TB6
         "Steps": 200,
         "Direction": 0
     }
+}
+```
+## Trigger mechanism
+```json
+{
+    "T":1
 }
 ```
