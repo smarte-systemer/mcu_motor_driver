@@ -1,0 +1,6 @@
+[submodule "lib/ArduinoJson"]
+	path = lib/ArduinoJson
+	url = git@github.com:bblanchon/ArduinoJson.git
+[submodule "lib/Servo"]
+	path = lib/Servo
+	url = git@github.com:arduino-libraries/Servo.git
