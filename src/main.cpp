@@ -67,6 +67,15 @@ void buttonPress()
     if(!canShoot)triggerServo.write(TurretSyndrome::Trigger::reload);     
 }
 /**
+ * @brief Confirm that motors have performed steps.
+ * 
+ */
+void sendResponse(const char* msg)
+{
+    Serial.println(msg);
+    done = true;
+}
+/**
  * @brief Message from raspberry pi
  * Assign steps and direction to correct motor.
  */
@@ -82,26 +91,20 @@ void handleIncomingMessage()
         digitalWrite(TurretSyndrome::Pitch::direction, document["P"]["D"]);
         done = false;
     }
-    else if(document["T"])
+    else if(document["T"] && document["T"] == 1)
     {
         if(canShoot)
         {
             triggerServo.write(TurretSyndrome::Trigger::shoot);
             sendResponse("Fired");
         }
+        else
+        {
+            sendResponse("Cannot fire, in reload state");
+        }
     }
    
 }
-/**
- * @brief Confirm that motors have performed steps.
- * 
- */
-void sendResponse(const char* msg)
-{
-    Serial.println(msg);
-    done = true;
-}
-
 void setup()
 {
     Serial.begin(115200);
