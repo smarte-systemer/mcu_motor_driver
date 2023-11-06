@@ -30,20 +30,17 @@ volatile bool done = true;
 void startTimerOne(unsigned int compare)
 {
     //Approx. 4us runtime
-    TCCR1A = 0b00000000;
-    TCCR1B = 0b00000010;
-    TCCR1C = 0;
-    OCR1A = compare;
-    TCNT1H = 0;
-    TCNT1L = 0;
-    TIMSK1 = _BV(OCIE1A);
+    TCCR2A = 0b00000000;
+    TCCR2B = 0b00000010;
+    OCR2A = compare;
+    TIMSK2 = _BV(OCIE2A);
 }
 /**
  * @brief Interrupt service routine 
  * Flips pulse pin of motor if number of steps is not reached.
  * 
  */
-ISR(TIMER1_COMPA_vect)
+ISR(TIMER2_COMPA_vect)
 {
     startTimerOne(TurretSyndrome::ticks);
     // For loop takes approx. 32us
@@ -98,7 +95,7 @@ void setup()
     {
         pinMode(m->direction, OUTPUT);
         pinMode(m->pulse, OUTPUT);
-       //m->steps = 100;
+       m->steps = 100;
     }   
     startTimerOne(TurretSyndrome::ticks);
 }
