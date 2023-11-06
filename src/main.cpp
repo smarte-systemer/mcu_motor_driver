@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <definitions.hpp>
 #include <ArduinoJson.h>
+#include <Servo.h>
+
+Servo triggerServo;
 
 /**
  * @brief 
@@ -21,7 +24,7 @@ volatile motor pitch = {.pulse=TurretSyndrome::Pitch::pulse,
                  .steps = 0};
 volatile motor* motors[] = {&azimuth, &pitch};
 volatile bool done = true;
-
+volatile bool canShoot = false;
 /**
  * @brief 
  *  Start timer1, set compare with value in microseconds
@@ -53,49 +56,64 @@ ISR(TIMER2_COMPA_vect)
         }
     }
 }
-
+/**
+ * @brief Sets or unsets reload state for trigger servo.
+ * If servo is set to not shoot, servo will be set back to reload position.
+ * 
+ */
+void buttonPress()
+{
+    canShoot = digitalRead(TurretSyndrome::Trigger::button);
+    if(!canShoot)triggerServo.write(TurretSyndrome::Trigger::reload);     
+}
 /**
  * @brief Message from raspberry pi
  * Assign steps and direction to correct motor.
  */
 void handleIncomingMessage()
 {
-   // delay(200);
     StaticJsonDocument<100> document;
     if(deserializeJson(document, Serial) != DeserializationError::Ok) return;
-    if(document["A"])
+    if(document["A"] && document["B"])
     {
         azimuth.steps = document["A"]["S"];
         digitalWrite(TurretSyndrome::Azimuth::direction, document["A"]["D"]);
-        // azimuth.direction = document["A"]["D"];
-    }
-    if(document["P"])
-    {
         pitch.steps = document["P"]["S"];
         digitalWrite(TurretSyndrome::Pitch::direction, document["P"]["D"]);
-        // pitch.direction = document["P"]["D"];
+        done = false;
     }
-    
-    done = false;
+    else if(document["T"])
+    {
+        if(canShoot)
+        {
+            triggerServo.write(TurretSyndrome::Trigger::shoot);
+            sendResponse("Fired");
+        }
+    }
+   
 }
 /**
  * @brief Confirm that motors have performed steps.
  * 
  */
-void sendResponse()
+void sendResponse(const char* msg)
 {
-    Serial.println("Done");
+    Serial.println(msg);
     done = true;
 }
 
 void setup()
 {
     Serial.begin(115200);
+    pinMode(TurretSyndrome::Trigger::button, INPUT);
+    pinMode(TurretSyndrome::Trigger::pin, OUTPUT);
+    attachInterrupt(digitalPinToInterrupt(TurretSyndrome::Trigger::button), buttonPress, CHANGE);
+    triggerServo.attach(TurretSyndrome::Trigger::pin);
     for (auto& m: motors)
     {
         pinMode(m->direction, OUTPUT);
         pinMode(m->pulse, OUTPUT);
-       m->steps = 100;
+       //m->steps = 100;
     }   
     startTimerOne(TurretSyndrome::ticks);
 }
@@ -104,6 +122,6 @@ void loop()
     if(!azimuth.steps && !pitch.steps)
     {
         if(Serial.available()) handleIncomingMessage();
-        else if(!done)sendResponse();
+        else if(!done)sendResponse("Done");
     }
 }
