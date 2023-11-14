@@ -1,10 +1,6 @@
 #include <Arduino.h>
 #include <definitions.hpp>
 #include <ArduinoJson.h>
-#include <Servo.h>
-
-Servo triggerServo;
-
 /**
  * @brief 
  * Struct to represent motors
@@ -33,17 +29,20 @@ volatile bool canShoot = false;
 void startTimerOne(unsigned int compare)
 {
     //Approx. 4us runtime
-    TCCR2A = 0b00000000;
-    TCCR2B = 0b00000010;
-    OCR2A = compare;
-    TIMSK2 = _BV(OCIE2A);
+    TCCR1A = 0b00000000;
+    TCCR1B = 0b00000010;
+    TCCR1C = 0;
+    OCR1A = compare;
+    TCNT1H = 0;
+    TCNT1L = 0;
+    TIMSK1 = _BV(OCIE1A);
 }
 /**
  * @brief Interrupt service routine 
  * Flips pulse pin of motor if number of steps is not reached.
  * 
  */
-ISR(TIMER2_COMPA_vect)
+ISR(TIMER1_COMPA_vect)
 {
     startTimerOne(TurretSyndrome::ticks);
     // For loop takes approx. 32us
@@ -57,16 +56,6 @@ ISR(TIMER2_COMPA_vect)
     }
 }
 /**
- * @brief Sets or unsets reload state for trigger servo.
- * If servo is set to not shoot, servo will be set back to reload position.
- * 
- */
-void buttonPress()
-{
-    canShoot = digitalRead(TurretSyndrome::Trigger::button);
-    if(!canShoot)triggerServo.write(TurretSyndrome::Trigger::reload);     
-}
-/**
  * @brief Confirm that motors have performed steps.
  * 
  */
@@ -78,12 +67,13 @@ void sendResponse(const char* msg)
 /**
  * @brief Message from raspberry pi
  * Assign steps and direction to correct motor.
+ * Or activate trigger mechanism.
  */
 void handleIncomingMessage()
 {
     StaticJsonDocument<100> document;
     if(deserializeJson(document, Serial) != DeserializationError::Ok) return;
-    if(document["A"] && document["B"])
+    if(document["A"] && document["P"])
     {
         azimuth.steps = document["A"]["S"];
         digitalWrite(TurretSyndrome::Azimuth::direction, document["A"]["D"]);
@@ -93,30 +83,30 @@ void handleIncomingMessage()
     }
     else if(document["T"] && document["T"] == 1)
     {
-        if(canShoot)
+        unsigned long deadline = millis() + 1000;
+        bool confirmed = false;
+        digitalWrite(TurretSyndrome::Trigger::output, HIGH);
+        while (not (confirmed or millis() > deadline))
         {
-            triggerServo.write(TurretSyndrome::Trigger::shoot);
-            sendResponse("Fired");
+            if (digitalRead(TurretSyndrome::Trigger::input) == LOW)
+            {
+                confirmed = true;
+                sendResponse("Fired");
+            }
         }
-        else
-        {
-            sendResponse("Cannot fire, in reload state");
-        }
+        digitalWrite(TurretSyndrome::Trigger::output, LOW);
     }
-   
 }
 void setup()
 {
     Serial.begin(115200);
-    pinMode(TurretSyndrome::Trigger::button, INPUT);
-    pinMode(TurretSyndrome::Trigger::pin, OUTPUT);
-    attachInterrupt(digitalPinToInterrupt(TurretSyndrome::Trigger::button), buttonPress, CHANGE);
-    triggerServo.attach(TurretSyndrome::Trigger::pin);
+    pinMode(TurretSyndrome::Trigger::input, INPUT);
+    pinMode(TurretSyndrome::Trigger::output, OUTPUT);
     for (auto& m: motors)
     {
         pinMode(m->direction, OUTPUT);
         pinMode(m->pulse, OUTPUT);
-       //m->steps = 100;
+        m->steps = 0;
     }   
     startTimerOne(TurretSyndrome::ticks);
 }

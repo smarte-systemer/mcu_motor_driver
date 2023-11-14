@@ -14,10 +14,7 @@ namespace TurretSyndrome
     };
     namespace Trigger
     {
-      const uint8_t pin{9};
-      const uint8_t button{2};
-      const uint8_t shoot{180};
-      const uint8_t reload{0};
-
+      const uint8_t input{9};
+      const uint8_t output{8};
     };
 };
