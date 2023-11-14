@@ -14,7 +14,7 @@ namespace TurretSyndrome
     };
     namespace Trigger
     {
-      const uint8_t input{9};
-      const uint8_t output{8};
+      const uint8_t input{11};
+      const uint8_t output{10};
     };
 };
